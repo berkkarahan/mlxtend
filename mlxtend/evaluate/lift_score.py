@@ -16,7 +16,7 @@ def lift_score(y_target, y_predicted, binary=True, positive_label=1):
     The in terms of True Positives (TP), True Negatives (TN),
     False Positives (FP), and False Negatives (FN), the lift score is
     computed as:
-    [ TP/(TP+FN) ] / [ (TP+FP) / (TP+TN+FP+FN) ]
+    [ TP / (TP+FP) ] / [ (TP+FN) / (TP+TN+FP+FN) ]
 
 
     Parameters
@@ -37,6 +37,11 @@ def lift_score(y_target, y_predicted, binary=True, positive_label=1):
     ----------
     score : float
         Lift score in the range [0, $\infty$]
+
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/evaluate/lift_score/
 
     """
 

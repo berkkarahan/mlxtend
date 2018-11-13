@@ -11,11 +11,12 @@
 from ..externals.estimator_checks import check_is_fitted
 from ..externals.name_estimators import _name_estimators
 from ..externals import six
+import numpy as np
+import scipy.sparse as sparse
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
 from sklearn.base import clone
-import numpy as np
 
 
 class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
@@ -41,12 +42,19 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
                        regressor being fitted
         - `verbose>2`: Changes `verbose` param of the underlying regressor to
            self.verbose - 2
+    use_features_in_secondary : bool (default: False)
+        If True, the meta-regressor will be trained both on
+        the predictions of the original regressors and the
+        original dataset.
+        If False, the meta-regressor will be trained only on
+        the predictions of the original regressors.
     store_train_meta_features : bool (default: False)
         If True, the meta-features computed from the training data
         used for fitting the
         meta-regressor stored in the `self.train_meta_features_` array,
         which can be
         accessed after calling `fit`.
+
 
     Attributes
     ----------
@@ -70,9 +78,14 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
         the scikit-learn fit/predict API interface but are not compatible
         to scikit-learn's `clone` function.
 
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/regressor/StackingRegressor/
 
     """
     def __init__(self, regressors, meta_regressor, verbose=0,
+                 use_features_in_secondary=False,
                  store_train_meta_features=False, refit=True):
 
         self.regressors = regressors
@@ -84,10 +97,11 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
                                      key, value in
                                      _name_estimators([meta_regressor])}
         self.verbose = verbose
+        self.use_features_in_secondary = use_features_in_secondary
         self.store_train_meta_features = store_train_meta_features
         self.refit = refit
 
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weight=None):
         """Learn weight coefficients from training data for each regressor.
 
         Parameters
@@ -97,6 +111,11 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             n_features is the number of features.
         y : array-like, shape = [n_samples] or [n_samples, n_targets]
             Target values.
+        sample_weight : array-like, shape = [n_samples], optional
+            Sample weights passed as sample_weights to each regressor
+            in the regressors list as well as the meta_regressor.
+            Raises error if some regressor does not support
+            sample_weight in the fit() method.
 
         Returns
         -------
@@ -107,8 +126,8 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             self.regr_ = [clone(clf) for clf in self.regressors]
             self.meta_regr_ = clone(self.meta_regressor)
         else:
-            self.clfs_ = self.regressors
-            self.meta_clf_ = self.meta_regressor
+            self.regr_ = self.regressors
+            self.meta_regr_ = self.meta_regressor
 
         if self.verbose > 0:
             print("Fitting %d regressors..." % (len(self.regressors)))
@@ -127,10 +146,25 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             if self.verbose > 1:
                 print(_name_estimators((regr,))[0][1])
 
-            regr.fit(X, y)
+            if sample_weight is None:
+                regr.fit(X, y)
+            else:
+                regr.fit(X, y, sample_weight=sample_weight)
 
         meta_features = self.predict_meta_features(X)
-        self.meta_regr_.fit(meta_features, y)
+
+        if not self.use_features_in_secondary:
+            # meta model uses the prediction outcomes only
+            pass
+        elif sparse.issparse(X):
+            meta_features = sparse.hstack((X, meta_features))
+        else:
+            meta_features = np.hstack((X, meta_features))
+
+        if sample_weight is None:
+            self.meta_regr_.fit(meta_features, y)
+        else:
+            self.meta_regr_.fit(meta_features, y, sample_weight=sample_weight)
 
         # save meta-features for training data
         if self.store_train_meta_features:
@@ -202,4 +236,10 @@ class StackingRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
         """
         check_is_fitted(self, 'regr_')
         meta_features = self.predict_meta_features(X)
-        return self.meta_regr_.predict(meta_features)
+
+        if not self.use_features_in_secondary:
+            return self.meta_regr_.predict(meta_features)
+        elif sparse.issparse(X):
+            return self.meta_regr_.predict(sparse.hstack((X, meta_features)))
+        else:
+            return self.meta_regr_.predict(np.hstack((X, meta_features)))

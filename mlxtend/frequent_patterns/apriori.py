@@ -4,7 +4,6 @@
 #
 # License: BSD 3 clause
 
-from itertools import combinations
 import numpy as np
 import pandas as pd
 
@@ -35,6 +34,12 @@ def generate_new_combinations(old_combinations):
     of item type ids in the ascending order.
     No combination other than generated
     do not have a chance to get enough support
+
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/frequent_patterns/generate_new_combinations/
+
     """
 
     items_types_in_previous_step = np.unique(old_combinations.flatten())
@@ -46,13 +51,16 @@ def generate_new_combinations(old_combinations):
                 yield res
 
 
-def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
+def apriori(df, min_support=0.5, use_colnames=False, max_len=None, n_jobs=1):
     """Get frequent itemsets from a one-hot DataFrame
     Parameters
     -----------
-    df : pandas DataFrame
-      pandas DataFrame in one-hot encoded format. For example
-      ```
+    df : pandas DataFrame or pandas SparseDataFrame
+      pandas DataFrame the encoded format.
+      The allowed values are either 0/1 or True/False.
+      For example,
+
+    ```
              Apple  Bananas  Beer  Chicken  Milk  Rice
         0      1        0     1        1     0     1
         1      1        0     1        0     0     1
@@ -62,7 +70,8 @@ def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
         5      0        0     1        0     1     1
         6      0        0     1        0     1     0
         7      1        1     0        0     0     0
-        ```
+    ```
+
     min_support : float (default: 0.5)
       A float between 0 and 1 for minumum support of the itemsets returned.
       The support is computed as the fraction
@@ -79,12 +88,37 @@ def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
     Returns
     -----------
     pandas DataFrame with columns ['support', 'itemsets'] of all itemsets
-    that are >= `min_support` and < than `max_len` (if `max_len` is not None).
-    """
+      that are >= `min_support` and < than `max_len`
+      (if `max_len` is not None).
+      Each itemset in the 'itemsets' column is of type `frozenset`,
+      which is a Python built-in type that behaves similarly to
+      sets except that it is immutable
+      (For more info, see
+      https://docs.python.org/3.6/library/stdtypes.html#frozenset).
 
-    X = df.values
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/frequent_patterns/apriori/
+
+    """
+    allowed_val = {0, 1, True, False}
+    unique_val = np.unique(df.values.ravel())
+    for val in unique_val:
+        if val not in allowed_val:
+            s = ('The allowed values for a DataFrame'
+                 ' are True, False, 0, 1. Found value %s' % (val))
+            raise ValueError(s)
+
+    is_sparse = hasattr(df, "to_coo")
+    if is_sparse:
+        X = df.to_coo().tocsc()
+        support = np.array(np.sum(X, axis=0) / float(X.shape[0])).reshape(-1)
+    else:
+        X = df.values
+        support = (np.sum(X, axis=0) / float(X.shape[0]))
+
     ary_col_idx = np.arange(X.shape[1])
-    support = (np.sum(X, axis=0) / float(X.shape[0]))
     support_dict = {1: support[support >= min_support]}
     itemset_dict = {1: ary_col_idx[support >= min_support].reshape(-1, 1)}
     max_itemset = 1
@@ -99,8 +133,13 @@ def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
         frequent_items = []
         frequent_items_support = []
 
+        if is_sparse:
+            all_ones = np.ones((X.shape[0], next_max_itemset))
         for c in combin:
-            together = X[:, c].all(axis=1)
+            if is_sparse:
+                together = np.all(X[:, c] == all_ones, axis=1)
+            else:
+                together = X[:, c].all(axis=1)
             support = together.sum() / rows_count
             if support >= min_support:
                 frequent_items.append(c)
@@ -116,7 +155,7 @@ def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
     all_res = []
     for k in sorted(itemset_dict):
         support = pd.Series(support_dict[k])
-        itemsets = pd.Series([i for i in itemset_dict[k]])
+        itemsets = pd.Series([frozenset(i) for i in itemset_dict[k]])
 
         res = pd.concat((support, itemsets), axis=1)
         all_res.append(res)
@@ -125,8 +164,8 @@ def apriori(df, min_support=0.5, use_colnames=False, max_len=None):
     res_df.columns = ['support', 'itemsets']
     if use_colnames:
         mapping = {idx: item for idx, item in enumerate(df.columns)}
-        res_df['itemsets'] = res_df['itemsets'].apply(lambda x: [mapping[i]
-                                                      for i in x])
+        res_df['itemsets'] = res_df['itemsets'].apply(lambda x: frozenset([
+                                                      mapping[i] for i in x]))
     res_df = res_df.reset_index(drop=True)
 
     return res_df

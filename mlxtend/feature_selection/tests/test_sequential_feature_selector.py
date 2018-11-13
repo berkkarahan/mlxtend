@@ -9,6 +9,9 @@ import sys
 import numpy as np
 from numpy import nan
 from numpy.testing import assert_almost_equal
+
+import pandas as pd
+
 from sklearn.datasets import load_boston
 from sklearn.datasets import load_iris
 from sklearn.ensemble import RandomForestClassifier
@@ -22,6 +25,9 @@ from sklearn.pipeline import Pipeline
 from mlxtend.classifier import SoftmaxRegression
 from mlxtend.feature_selection import SequentialFeatureSelector as SFS
 from mlxtend.utils import assert_raises
+
+from distutils.version import LooseVersion as Version
+from sklearn import __version__ as sklearn_version
 
 
 def nan_roc_auc_score(y_true, y_score, average='macro', sample_weight=None):
@@ -450,7 +456,13 @@ def test_regression():
                 verbose=0)
     sfs_r = sfs_r.fit(X, y)
     assert len(sfs_r.k_feature_idx_) == 13
-    assert round(sfs_r.k_score_, 4) == -34.7631
+
+    if Version(sklearn_version) < '0.20':
+        assert round(sfs_r.k_score_, 4) == -34.7631, \
+            round(sfs_r.k_score_, 4)
+    else:
+        assert round(sfs_r.k_score_, 4) == -34.7053, \
+            round(sfs_r.k_score_, 4)
 
 
 def test_regression_sffs():
@@ -496,26 +508,88 @@ def test_regression_in_range():
                 verbose=0)
     sfs_r = sfs_r.fit(X, y)
     assert len(sfs_r.k_feature_idx_) == 9
-    assert round(sfs_r.k_score_, 4) == -31.1537
+
+    if Version(sklearn_version) < '0.20':
+        assert round(sfs_r.k_score_, 4) == -31.1537, round(sfs_r.k_score_, 4)
+    else:
+        assert round(sfs_r.k_score_, 4) == -31.1299, round(sfs_r.k_score_, 4)
 
 
 def test_clone_params_fail():
+
+    class Perceptron(object):
+
+        def __init__(self, eta=0.1, epochs=50, random_seed=None,
+                     print_progress=0):
+
+            self.eta = eta
+            self.epochs = epochs
+            self.random_seed = random_seed
+            self.print_progress = print_progress
+            self._is_fitted = False
+
+        def _fit(self, X, y, init_params=True):
+            self._check_target_array(y, allowed={(0, 1)})
+            y_data = np.where(y == 0, -1., 1.)
+
+            if init_params:
+                self.b_, self.w_ = self._init_params(
+                    weights_shape=(X.shape[1], 1),
+                    bias_shape=(1,),
+                    random_seed=self.random_seed)
+                self.cost_ = []
+
+            rgen = np.random.RandomState(self.random_seed)
+            for i in range(self.epochs):
+                errors = 0
+
+                for idx in self._yield_minibatches_idx(
+                        rgen=rgen,
+                        n_batches=y_data.shape[0],
+                        data_ary=y_data,
+                        shuffle=True):
+
+                    update = self.eta * (y_data[idx] -
+                                         self._to_classlabels(X[idx]))
+                    self.w_ += (update * X[idx]).reshape(self.w_.shape)
+                    self.b_ += update
+                    errors += int(update != 0.0)
+
+                if self.print_progress:
+                    self._print_progress(iteration=i + 1,
+                                         n_iter=self.epochs,
+                                         cost=errors)
+                self.cost_.append(errors)
+            return self
+
+        def _net_input(self, X):
+            """ Net input function """
+            return (np.dot(X, self.w_) + self.b_).flatten()
+
+        def _to_classlabels(self, X):
+            return np.where(self._net_input(X) < 0.0, -1., 1.)
+
+        def _predict(self, X):
+            return np.where(self._net_input(X) < 0.0, 0, 1)
+
     if sys.version_info >= (3, 0):
+        object_ = ("'<class 'test_sequential_feature_selector."
+                   "test_clone_params_fail.<locals>.Perceptron'>'")
         objtype = 'class'
     else:
         objtype = 'type'
+        object_ = ("'<class 'test_sequential_feature_selector.Perceptron'>'")
 
     expect = ("Cannot clone object"
-              " '<class 'mlxtend.classifier."
-              "softmax_regression.SoftmaxRegression'>'"
+              " %s"
               " (type <%s 'type'>): it does not seem to be a"
               " scikit-learn estimator as it does not"
-              " implement a 'get_params' methods.") % objtype
+              " implement a 'get_params' methods.") % (object_, objtype)
 
     assert_raises(TypeError,
                   expect,
                   SFS,
-                  SoftmaxRegression,
+                  Perceptron,
                   scoring='accuracy',
                   k_features=3,
                   clone_estimator=True)
@@ -532,7 +606,7 @@ def test_clone_params_pass():
                floating=False,
                scoring='accuracy',
                cv=0,
-               clone_estimator=False,
+               clone_estimator=True,
                verbose=0,
                n_jobs=1)
     sfs1 = sfs1.fit(X, y)
@@ -578,6 +652,31 @@ def test_get_metric_dict_not_fitted():
     assert_raises(AttributeError,
                   expect,
                   sfs1.get_metric_dict)
+
+
+def test_cv_generator_raises():
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+    knn = KNeighborsClassifier(n_neighbors=4)
+
+    groups = np.arange(len(y)) // 50
+    cv_gen = GroupKFold(n_splits=3).split(X, y, groups)
+
+    expect = ('Input cv is a generator object, which is not supported. '
+              'Instead please input an iterable yielding train, test splits. '
+              'This can usually be done by passing a cross-validation '
+              'generator to the built-in list function. I.e. '
+              'cv=list(<cv-generator>)')
+
+    assert_raises(TypeError,
+                  expect,
+                  SFS,
+                  knn,
+                  k_features=2,
+                  cv=cv_gen,
+                  verbose=0,
+                  n_jobs=1)
 
 
 def test_keyboard_interrupt():
@@ -627,6 +726,7 @@ def test_gridsearch():
     gs = GridSearchCV(estimator=pipe,
                       param_grid=param_grid,
                       n_jobs=1,
+                      iid=False,
                       cv=5,
                       refit=False)
 
@@ -706,3 +806,87 @@ def test_max_feature_subset_parsimonious():
 
     sfs = sfs.fit(X, y)
     assert sfs.k_feature_idx_ == (5, 10, 11, 12)
+
+
+def test_check_pandas_dataframe_fit():
+
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+    lr = SoftmaxRegression(random_seed=1)
+    sfs1 = SFS(lr,
+               k_features=2,
+               forward=True,
+               floating=False,
+               scoring='accuracy',
+               cv=0,
+               verbose=0,
+               n_jobs=1)
+
+    df = pd.DataFrame(X, columns=['sepal len', 'sepal width',
+                                  'petal len', 'petal width'])
+
+    sfs1 = sfs1.fit(X, y)
+    assert sfs1.k_feature_idx_ == (1, 3)
+    assert sfs1.k_feature_names_ == ('1', '3')
+    assert sfs1.subsets_[2]['feature_names'] == ('1', '3')
+
+    sfs1 = sfs1.fit(df, y)
+    assert sfs1.subsets_[1]['feature_names'] == ('petal width',)
+    assert sfs1.subsets_[2]['feature_names'] == ('sepal width', 'petal width')
+    assert sfs1.subsets_[1]['feature_idx'] == (3,)
+    assert sfs1.subsets_[2]['feature_idx'] == (1, 3)
+    assert sfs1.k_feature_idx_ == (1, 3)
+    assert sfs1.k_feature_names_ == ('sepal width', 'petal width')
+
+    sfs1._TESTING_INTERRUPT_MODE = True
+    out = sfs1.fit(df, y)
+    assert len(out.subsets_.keys()) > 0
+    assert sfs1.interrupted_
+    assert sfs1.subsets_[1]['feature_names'] == ('petal width',)
+    assert sfs1.k_feature_idx_ == (3,)
+    assert sfs1.k_feature_names_ == ('petal width',)
+
+
+def test_check_pandas_dataframe_transform():
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+    lr = SoftmaxRegression(random_seed=1)
+    sfs1 = SFS(lr,
+               k_features=2,
+               forward=True,
+               floating=False,
+               scoring='accuracy',
+               cv=0,
+               verbose=0,
+               n_jobs=1)
+
+    df = pd.DataFrame(X, columns=['sepal length', 'sepal width',
+                                  'petal length', 'petal width'])
+    sfs1 = sfs1.fit(df, y)
+    assert sfs1.k_feature_idx_ == (1, 3)
+    assert (150, 2) == sfs1.transform(df).shape
+
+
+def test_custom_feature_names():
+
+    iris = load_iris()
+    X = iris.data
+    y = iris.target
+    lr = SoftmaxRegression(random_seed=1)
+    sfs1 = SFS(lr,
+               k_features=2,
+               forward=True,
+               floating=False,
+               scoring='accuracy',
+               cv=0,
+               verbose=0,
+               n_jobs=1)
+
+    sfs1 = sfs1.fit(X, y, custom_feature_names=(
+          'sepal length', 'sepal width', 'petal length', 'petal width'))
+    assert sfs1.k_feature_idx_ == (1, 3)
+    assert sfs1.k_feature_names_ == ('sepal width', 'petal width')
+    assert sfs1.subsets_[2]['feature_names'] == ('sepal width',
+                                                 'petal width')

@@ -7,8 +7,94 @@ The CHANGELOG for the current development version is available at
 
 ---
 
+### Version 0.15.0dev (TBD)
 
-### Version 0.12.0dev (TBD)
+##### Downloads
+
+- [Source code (zip)](https://github.com/rasbt/mlxtend/archive/v0.15.0.zip)
+- [Source code (tar.gz)](https://github.com/rasbt/mlxtend/archive/v0.15.0.tar.gz)
+
+##### New Features
+
+- -
+
+##### Changes
+
+- -
+
+##### Bug Fixes
+
+- -
+
+
+
+### Version 0.14.0 (11-09-2018)
+
+##### Downloads
+
+- [Source code (zip)](https://github.com/rasbt/mlxtend/archive/v0.14.0.zip)
+- [Source code (tar.gz)](https://github.com/rasbt/mlxtend/archive/v0.14.0.tar.gz)
+
+##### New Features
+
+- Added a `scatterplotmatrix` function to the `plotting` module. ([#437](https://github.com/rasbt/mlxtend/pull/437))
+- Added `sample_weight` option to `StackingRegressor`, `StackingClassifier`, `StackingCVRegressor`, `StackingCVClassifier`, `EnsembleVoteClassifier`. ([#438](https://github.com/rasbt/mlxtend/issues/438))
+- Added a `RandomHoldoutSplit` class to perform a random train/valid split without rotation in `SequentialFeatureSelector`, scikit-learn `GridSearchCV` etc. ([#442](https://github.com/rasbt/mlxtend/pull/442))
+- Added a `PredefinedHoldoutSplit` class to perform a train/valid split, based on user-specified indices, without rotation in `SequentialFeatureSelector`, scikit-learn `GridSearchCV` etc. ([#443](https://github.com/rasbt/mlxtend/pull/443))
+- Created a new `mlxtend.image` submodule for working on image processing-related tasks. ([#457](https://github.com/rasbt/mlxtend/pull/457))
+- Added a new convenience function `extract_face_landmarks` based on `dlib` to `mlxtend.image`. ([#458](https://github.com/rasbt/mlxtend/pull/458))
+- Added a `method='oob'` option to the `mlxtend.evaluate.bootstrap_point632_score` method to compute the classic out-of-bag bootstrap estimate ([#459](https://github.com/rasbt/mlxtend/pull/459))
+- Added a `method='.632+'` option to the `mlxtend.evaluate.bootstrap_point632_score` method to compute the .632+ bootstrap estimate that addresses the optimism bias of the .632 bootstrap ([#459](https://github.com/rasbt/mlxtend/pull/459))
+- Added a new `mlxtend.evaluate.ftest` function to perform an F-test for comparing the accuracies of two or more classification models. ([#460](https://github.com/rasbt/mlxtend/pull/460))
+- Added a new `mlxtend.evaluate.combined_ftest_5x2cv` function to perform an combined 5x2cv F-Test for comparing the performance of two models. ([#461](https://github.com/rasbt/mlxtend/pull/461))
+- Added a new `mlxtend.evaluate.difference_proportions` test for comparing two proportions (e.g., classifier accuracies) ([#462](https://github.com/rasbt/mlxtend/pull/462))
+
+
+##### Changes
+
+- Addressed deprecations warnings in NumPy 0.15. ([#425](https://github.com/rasbt/mlxtend/pull/425))
+- Because of complications in PR ([#459](https://github.com/rasbt/mlxtend/pull/459)), Python 2.7 was now dropped; since official support for Python 2.7 by the Python Software Foundation is ending in approx. 12 months anyways, this re-focussing will hopefully free up some developer time with regard to not having to worry about backward compatibility
+
+##### Bug Fixes
+
+- Fixed an issue with a missing import in `mlxtend.plotting.plot_confusion_matrix`. ([#428](https://github.com/rasbt/mlxtend/pull/428))
+
+### Version 0.13.0 (2018-07-20)
+
+##### Downloads
+
+- [Source code (zip)](https://github.com/rasbt/mlxtend/archive/v0.13.0.zip)
+- [Source code (tar.gz)](https://github.com/rasbt/mlxtend/archive/v0.13.0.tar.gz)
+
+##### New Features
+
+- A meaningful error message is now raised when a cross-validation generator is used with `SequentialFeatureSelector`. ([#377](https://github.com/rasbt/mlxtend/pull/377))
+- The `SequentialFeatureSelector` now accepts custom feature names via the `fit` method for more interpretable feature subset reports. ([#379](https://github.com/rasbt/mlxtend/pull/379))
+- The `SequentialFeatureSelector` is now also compatible with Pandas DataFrames and uses DataFrame column-names for more interpretable feature subset reports. ([#379](https://github.com/rasbt/mlxtend/pull/379))
+- `ColumnSelector` now works with Pandas DataFrames columns. ([#378](https://github.com/rasbt/mlxtend/pull/378) by [Manuel Garrido](https://github.com/manugarri))
+- The `ExhaustiveFeatureSelector` estimator in `mlxtend.feature_selection` now is safely stoppable mid-process by control+c. ([#380](https://github.com/rasbt/mlxtend/pull/380))
+- Two new functions, `vectorspace_orthonormalization` and `vectorspace_dimensionality` were added to `mlxtend.math` to use the Gram-Schmidt process to convert a set of linearly independent vectors into a set of orthonormal basis vectors, and to compute the dimensionality of a vectorspace, respectively. ([#382](https://github.com/rasbt/mlxtend/pull/382))
+- `mlxtend.frequent_patterns.apriori` now supports pandas `SparseDataFrame`s to generate frequent itemsets. ([#404](https://github.com/rasbt/mlxtend/pull/404) via [Daniel Morales](https://github.com/rasbt/mlxtend/pull/404))
+- The `plot_confusion_matrix` function now has the ability to show normalized confusion matrix coefficients in addition to or instead of absolute confusion matrix coefficients with or without a colorbar. The text display method has been changed so that the full range of the colormap is used. The default size is also now set based on the number of classes.
+- Added support for merging the meta features with the original input features in `StackingRegressor` (via `use_features_in_secondary`) like it is already supported in the other Stacking classes. ([#418](https://github.com/rasbt/mlxtend/pull/418))
+- Added a `support_only` to the `association_rules` function, which allow constructing association rules (based on the support metric only) for cropped input DataFrames that don't contain a complete set of antecedent and consequent support values. ([#421](https://github.com/rasbt/mlxtend/pull/421))
+
+##### Changes
+
+- Itemsets generated with `apriori` are now `frozenset`s ([#393](https://github.com/rasbt/mlxtend/issues/393) by [William Laney](https://github.com/WLaney) and [#394](https://github.com/rasbt/mlxtend/issues/394))
+- Now raises an error if a input DataFrame to `apriori` contains non 0, 1, True, False values. [#419](https://github.com/rasbt/mlxtend/issues/419))
+
+##### Bug Fixes
+
+- Allow mlxtend estimators to be cloned via scikit-learn's `clone` function. ([#374](https://github.com/rasbt/mlxtend/pull/374))
+- Fixes bug to allow the correct use of `refit=False` in `StackingRegressor` and `StackingCVRegressor`  ([#384](https://github.com/rasbt/mlxtend/pull/384) and ([#385](https://github.com/rasbt/mlxtend/pull/385)) by [selay01](https://github.com/selay01))
+- Allow `StackingClassifier` to work with sparse matrices when `use_features_in_secondary=True`  ([#408](https://github.com/rasbt/mlxtend/issues/408) by [Floris Hoogenbook](https://github.com/FlorisHoogenboom))
+- Allow `StackingCVRegressor` to work with sparse matrices when `use_features_in_secondary=True`  ([#416](https://github.com/rasbt/mlxtend/issues/416))
+- Allow `StackingCVClassifier` to work with sparse matrices when `use_features_in_secondary=True`  ([#417](https://github.com/rasbt/mlxtend/issues/417))
+
+
+
+### Version 0.12.0 (2018-21-04)
 
 ##### Downloads
 
@@ -17,25 +103,25 @@ The CHANGELOG for the current development version is available at
 
 ##### New Features
 
+-  A new `feature_importance_permuation` function to compute the feature importance in classifiers and regressors via the *permutation importance* method ([#358](https://github.com/rasbt/mlxtend/pull/358))
+-  The fit method of the `ExhaustiveFeatureSelector` now optionally accepts `**fit_params` for the estimator that is used for the feature selection. ([#354](https://github.com/rasbt/mlxtend/pull/354) by Zach Griffith)
+-  The fit method of the `SequentialFeatureSelector` now optionally accepts
+`**fit_params` for the estimator that is used for the feature selection. ([#350](https://github.com/rasbt/mlxtend/pull/350) by Zach Griffith)
 
--   The fit method of the ExhaustiveFeatureSelector now optionally accepts
-    **fit_params for the estimator that is used for the feature selection. ([#354](https://github.com/rasbt/mlxtend/pull/354) by Zach Griffith)
--   The fit method of the SequentialFeatureSelector now optionally accepts
-    **fit_params for the estimator that is used for the feature selection. ([#350](https://github.com/rasbt/mlxtend/pull/350) by Zach Griffith)
-
-
-- -
 
 ##### Changes
 
 
-- Replaces `plot_decision_regions` colors by a colorblind-friendly palette and adds contour lines for decision regions. ([#348](https://github.com/rasbt/mlxtend/issues/348))
+- Replaced `plot_decision_regions` colors by a colorblind-friendly palette and adds contour lines for decision regions. ([#348](https://github.com/rasbt/mlxtend/issues/348))
 - All stacking estimators now raise `NonFittedErrors` if any method for inference is called prior to fitting the estimator. ([#353](https://github.com/rasbt/mlxtend/issues/353))
+- Renamed the `refit` parameter of both the `StackingClassifier` and `StackingCVClassifier` to `use_clones` to be more explicit and less misleading. ([#368](https://github.com/rasbt/mlxtend/pull/368))
 
 
 ##### Bug Fixes
 
-
+- Various changes in the documentation and documentation tools to fix formatting issues ([#363](https://github.com/rasbt/mlxtend/pull/363))
+- Fixes a bug where the `StackingCVClassifier`'s meta features were not stored in the original order when `shuffle=True` ([#370](https://github.com/rasbt/mlxtend/pull/370))
+- Many documentation improvements, including links to the User Guides in the API docs ([#371](https://github.com/rasbt/mlxtend/pull/371))
 
 
 
@@ -276,7 +362,7 @@ Note that this didn't cause any difference in performance on any of the test sce
 - The `StackingClassifier` has a new parameter `average_probas` that is set to `True` by default to maintain the current behavior. A deprecation warning was added though, and it will default to `False` in future releases (0.6.0); `average_probas=False` will result in stacking of the level-1 predicted probabilities rather than averaging these.
 - New `StackingCVClassifier` estimator in 'mlxtend.classifier' for implementing a stacking ensemble that uses cross-validation techniques for training the meta-estimator to avoid overfitting ([Reiichiro Nakano](https://github.com/reiinakano))
 - New `OnehotTransactions` encoder class added to the `preprocessing` submodule for transforming transaction data into a one-hot encoded array
-- The `SequentialFeatureSelector` estimator in `mlxtend.feature_selection` now is safely stoppable mid-process by control+c, and deprecated print_progress in favor of a more tunable verbose parameter ([Will McGinnis](https://github.com/wdm0006))
+- The `SequentialFeatureSelector` estimator in `mlxtend.feature_selection` now is safely stoppable mid-process by control+c, and deprecated `print_progress` in favor of a more tunable `verbose` parameter ([Will McGinnis](https://github.com/wdm0006))
 - New `apriori` function in `association` to extract frequent itemsets from transaction data for association rule mining
 - New `checkerboard_plot` function in `plotting` to plot checkerboard tables / heat maps
 - New `mcnemar_table` and `mcnemar` functions in `evaluate` to compute 2x2 contingency tables and McNemar's test

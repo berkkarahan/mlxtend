@@ -16,6 +16,7 @@
 from ..externals.estimator_checks import check_is_fitted
 from ..externals import six
 from ..externals.name_estimators import _name_estimators
+from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.base import RegressorMixin
 from sklearn.base import TransformerMixin
@@ -89,6 +90,11 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
         number of samples
         in training data and len(self.regressors) is the number of regressors.
 
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/regressor/StackingCVRegressor/
+
     """
     def __init__(self, regressors, meta_regressor, cv=5,
                  shuffle=True,
@@ -110,7 +116,7 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
         self.store_train_meta_features = store_train_meta_features
         self.refit = refit
 
-    def fit(self, X, y, groups=None):
+    def fit(self, X, y, groups=None, sample_weight=None):
         """ Fit ensemble regressors and the meta-regressor.
 
         Parameters
@@ -126,6 +132,12 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             The group that each sample belongs to. This is used by specific
             folding strategies such as GroupKFold()
 
+        sample_weight : array-like, shape = [n_samples], optional
+            Sample weights passed as sample_weights to each regressor
+            in the regressors list as well as the meta_regressor.
+            Raises error if some regressor does not support
+            sample_weight in the fit() method.
+
         Returns
         -------
         self : object
@@ -135,8 +147,8 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             self.regr_ = [clone(clf) for clf in self.regressors]
             self.meta_regr_ = clone(self.meta_regressor)
         else:
-            self.clfs_ = self.regressors
-            self.meta_clf_ = self.meta_regressor
+            self.regr_ = self.regressors
+            self.meta_regr_ = self.meta_regressor
 
         kfold = check_cv(self.cv, y)
         if isinstance(self.cv, int):
@@ -164,7 +176,11 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             #
             for train_idx, holdout_idx in kfold.split(X, y, groups):
                 instance = clone(regr)
-                instance.fit(X[train_idx], y[train_idx])
+                if sample_weight is None:
+                    instance.fit(X[train_idx], y[train_idx])
+                else:
+                    instance.fit(X[train_idx], y[train_idx],
+                                 sample_weight=sample_weight[train_idx])
                 y_pred = instance.predict(X[holdout_idx])
                 meta_features[holdout_idx, i] = y_pred
 
@@ -173,14 +189,24 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             self.train_meta_features_ = meta_features
 
         # Train meta-model on the out-of-fold predictions
-        if self.use_features_in_secondary:
-            self.meta_regr_.fit(np.hstack((X, meta_features)), y)
+        if not self.use_features_in_secondary:
+            pass
+        elif sparse.issparse(X):
+            meta_features = sparse.hstack((X, meta_features))
         else:
+            meta_features = np.hstack((X, meta_features))
+
+        if sample_weight is None:
             self.meta_regr_.fit(meta_features, y)
+        else:
+            self.meta_regr_.fit(meta_features, y, sample_weight=sample_weight)
 
         # Retrain base models on all data
         for regr in self.regr_:
-            regr.fit(X, y)
+            if sample_weight is None:
+                regr.fit(X, y)
+            else:
+                regr.fit(X, y, sample_weight=sample_weight)
 
         return self
 
@@ -210,10 +236,12 @@ class StackingCVRegressor(BaseEstimator, RegressorMixin, TransformerMixin):
             regr.predict(X) for regr in self.regr_
         ])
 
-        if self.use_features_in_secondary:
-            return self.meta_regr_.predict(np.hstack((X, meta_features)))
-        else:
+        if not self.use_features_in_secondary:
             return self.meta_regr_.predict(meta_features)
+        elif sparse.issparse(X):
+            return self.meta_regr_.predict(sparse.hstack((X, meta_features)))
+        else:
+            return self.meta_regr_.predict(np.hstack((X, meta_features)))
 
     def predict_meta_features(self, X):
         """ Get meta-features of test-data.

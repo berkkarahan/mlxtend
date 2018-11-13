@@ -11,13 +11,14 @@
 
 from ..externals.name_estimators import _name_estimators
 from ..externals.estimator_checks import check_is_fitted
+import numpy as np
+from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import TransformerMixin
 from sklearn.base import clone
 from sklearn.externals import six
 from sklearn.model_selection._split import check_cv
-import numpy as np
 
 
 class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
@@ -86,13 +87,17 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         for fitting the meta-classifier stored in the
         `self.train_meta_features_` array, which can be
         accessed after calling `fit`.
-    refit : bool (default: True)
+    use_clones : bool (default: True)
         Clones the classifiers for stacking classification if True (default)
         or else uses the original ones, which will be refitted on the dataset
-        upon calling the `fit` method. Setting refit=False is
+        upon calling the `fit` method. Hence, if use_clones=True, the original
+        input classifiers will remain unmodified upon using the
+        StackingCVClassifier's `fit` method.
+        Setting `use_clones=False` is
         recommended if you are working with estimators that are supporting
         the scikit-learn fit/predict API interface but are not compatible
         to scikit-learn's `clone` function.
+
 
     Attributes
     ----------
@@ -105,6 +110,11 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         number of samples
         in training data and n_classifiers is the number of classfiers.
 
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/classifier/StackingCVClassifier/
+
     """
     def __init__(self, classifiers, meta_classifier,
                  use_probas=False, cv=2,
@@ -112,7 +122,7 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
                  stratify=True,
                  shuffle=True, verbose=0,
                  store_train_meta_features=False,
-                 refit=True):
+                 use_clones=True):
 
         self.classifiers = classifiers
         self.meta_classifier = meta_classifier
@@ -129,9 +139,9 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         self.stratify = stratify
         self.shuffle = shuffle
         self.store_train_meta_features = store_train_meta_features
-        self.refit = refit
+        self.use_clones = use_clones
 
-    def fit(self, X, y, groups=None):
+    def fit(self, X, y, groups=None, sample_weight=None):
         """ Fit ensemble classifers and the meta-classifier.
 
         Parameters
@@ -147,12 +157,18 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
             The group that each sample belongs to. This is used by specific
             folding strategies such as GroupKFold()
 
+        sample_weight : array-like, shape = [n_samples], optional
+            Sample weights passed as sample_weights to each regressor
+            in the regressors list as well as the meta_regressor.
+            Raises error if some regressor does not support
+            sample_weight in the fit() method.
+
         Returns
         -------
         self : object
 
         """
-        if self.refit:
+        if self.use_clones:
             self.clfs_ = [clone(clf) for clf in self.classifiers]
             self.meta_clf_ = clone(self.meta_classifier)
         else:
@@ -196,14 +212,32 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
                           ((num + 1), final_cv.get_n_splits()))
 
                 try:
-                    model.fit(X[train_index], y[train_index])
+                    if sample_weight is None:
+                        model.fit(X[train_index], y[train_index])
+                    else:
+                        model.fit(X[train_index], y[train_index],
+                                  sample_weight=sample_weight[train_index])
                 except TypeError as e:
-                    raise TypeError(str(e) + '\nPlease check that X and y'
+
+                    if str(e).startswith('A sparse matrix was passed,'
+                                         ' but dense'
+                                         ' data is required'):
+                        sparse_estimator_message = (
+                            "\nYou are likely getting this error"
+                            " because one of the"
+                            " estimators"
+                            " does not support sparse matrix input.")
+                    else:
+                        sparse_estimator_message = ''
+
+                    raise TypeError(str(e) + sparse_estimator_message +
+                                    '\nPlease check that X and y'
                                     'are NumPy arrays. If X and y are lists'
                                     ' of lists,\ntry passing them as'
                                     ' numpy.array(X)'
                                     ' and numpy.array(y).')
                 except KeyError as e:
+
                     raise KeyError(str(e) + '\nPlease check that X and y'
                                    ' are NumPy arrays. If X and y are pandas'
                                    ' DataFrames,\ntry passing them as'
@@ -225,7 +259,14 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
                                                single_model_prediction])
 
         if self.store_train_meta_features:
-            self.train_meta_features_ = all_model_predictions
+            # Store the meta features in the order of the
+            # original X,y arrays
+            reodered_indices = np.array([]).astype(y.dtype)
+            for train_index, test_index in skf:
+                reodered_indices = np.concatenate((reodered_indices,
+                                                   test_index))
+            self.train_meta_features_ = all_model_predictions[np.argsort(
+                reodered_indices)]
 
         # We have to shuffle the labels in the same order as we generated
         # predictions during CV (we kinda shuffled them when we did
@@ -238,20 +279,35 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         for train_index, test_index in skf:
             reordered_labels = np.concatenate((reordered_labels,
                                                y[test_index]))
-            reordered_features = np.concatenate((reordered_features,
-                                                 X[test_index]))
+
+            if sparse.issparse(X):
+                reordered_features = sparse.vstack((reordered_features,
+                                                    X[test_index]))
+            else:
+                reordered_features = np.concatenate((reordered_features,
+                                                     X[test_index]))
 
         # Fit the base models correctly this time using ALL the training set
         for model in self.clfs_:
-            model.fit(X, y)
+            if sample_weight is None:
+                model.fit(X, y)
+            else:
+                model.fit(X, y, sample_weight=sample_weight)
 
         # Fit the secondary model
         if not self.use_features_in_secondary:
-            self.meta_clf_.fit(all_model_predictions, reordered_labels)
+            meta_features = all_model_predictions
+        elif sparse.issparse(X):
+            meta_features = sparse.hstack((reordered_features,
+                                           all_model_predictions))
         else:
-            self.meta_clf_.fit(np.hstack((reordered_features,
-                                          all_model_predictions)),
-                               reordered_labels)
+            meta_features = np.hstack((reordered_features,
+                                       all_model_predictions))
+        if sample_weight is None:
+            self.meta_clf_.fit(meta_features, reordered_labels)
+        else:
+            self.meta_clf_.fit(meta_features, reordered_labels,
+                               sample_weight=sample_weight)
 
         return self
 
@@ -325,9 +381,12 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         all_model_predictions = self.predict_meta_features(X)
         if not self.use_features_in_secondary:
             return self.meta_clf_.predict(all_model_predictions)
+        elif sparse.issparse(X):
+            return self.meta_clf_.predict(
+                sparse.hstack((X, all_model_predictions)))
         else:
-            return self.meta_clf_.predict(np.hstack((X,
-                                                     all_model_predictions)))
+            return self.meta_clf_.predict(
+                np.hstack((X, all_model_predictions)))
 
     def predict_proba(self, X):
         """ Predict class probabilities for X.
@@ -359,6 +418,9 @@ class StackingCVClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
                                                single_model_prediction))
         if not self.use_features_in_secondary:
             return self.meta_clf_.predict_proba(all_model_predictions)
+        elif sparse.issparse(X):
+            self.meta_clf_\
+                .predict_proba(sparse.hstack((X, all_model_predictions)))
         else:
             return self.meta_clf_\
                 .predict_proba(np.hstack((X, all_model_predictions)))

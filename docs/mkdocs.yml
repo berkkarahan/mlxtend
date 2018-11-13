@@ -5,17 +5,16 @@ site_description: A library consisting of useful tools and extensions for the da
 
 repo_url: https://github.com/rasbt/mlxtend
 repo_name: GitHub
+edit_uri: docs/sources/user_guide/
 
 #include_search: true # not necessary for this theme
 docs_dir: sources
-theme: mkdocs
-theme_dir: cinder
-#theme_dir: 'custom_theme'
 
-site_favicon: favicon.ico
+theme:
+    name: null
+    custom_dir: 'custom_theme/'
 
 markdown_extensions:
-  - extra
   - tables
   - fenced_code
   - mdx_math:
@@ -23,11 +22,18 @@ markdown_extensions:
 extra_javascript:
   - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS_HTML
   - mathjaxhelper.js
+extra_css:
+  - cinder/css/base.css
+  - cinder/css/bootstrap-custom.css
+  - cinder/css/bootstrap-custom.min.css
+  - cinder/css/cinder.css
+  - cinder/css/font-awesome-4.0.3.css
+  - cinder/css/highlight.css
 
 copyright: Copyright &copy; 2014-2018 <a href="http://sebastianraschka.com">Sebastian Raschka</a>
 google_analytics: ['UA-38457794-2', 'rasbt.github.io/mlxtend/']
 
-pages:
+nav:
 - Home: index.md
 - User Guide:
   - USER_GUIDE_INDEX.md
@@ -56,7 +62,10 @@ pages:
     - user_guide/evaluate/bootstrap_point632_score.md
     - user_guide/evaluate/BootstrapOutOfBag.md
     - user_guide/evaluate/cochrans_q.md    
+    - user_guide/evaluate/combined_ftest_5x2cv.md
     - user_guide/evaluate/confusion_matrix.md
+    - user_guide/evaluate/feature_importance_permutation.md
+    - user_guide/evaluate/ftest.md
     - user_guide/evaluate/lift_score.md
     - user_guide/evaluate/mcnemar_table.md
     - user_guide/evaluate/mcnemar_tables.md
@@ -65,6 +74,8 @@ pages:
     - user_guide/evaluate/paired_ttest_kfold_cv.md
     - user_guide/evaluate/paired_ttest_resampled.md
     - user_guide/evaluate/permutation_test.md
+    - user_guide/evaluate/PredefinedHoldoutSplit.md
+    - user_guide/evaluate/RandomHoldoutSplit.md
     - user_guide/evaluate/scoring.md
   - feature_extraction:
     - user_guide/feature_extraction/LinearDiscriminantAnalysis.md
@@ -85,9 +96,13 @@ pages:
     - user_guide/general_concepts/gradient-optimization.md
     - user_guide/general_concepts/linear-gradient-derivative.md
     - user_guide/general_concepts/regularization-linear.md
+  - image:
+    - user_guide/image/extract_face_landmarks.md
   - math:
     - user_guide/math/num_combinations.md
     - user_guide/math/num_permutations.md
+    - user_guide/math/vectorspace_dimensionality.md
+    - user_guide/math/vectorspace_orthonormalization.md
   - plotting:
     - user_guide/plotting/category_scatter.md
     - user_guide/plotting/checkerboard_plot.md
@@ -98,6 +113,7 @@ pages:
     - user_guide/plotting/plot_learning_curves.md
     - user_guide/plotting/plot_linear_regression.md
     - user_guide/plotting/plot_sequential_feature_selection.md
+    - user_guide/plotting/scatterplotmatrix.md
     - user_guide/plotting/stacked_barplot.md
   - preprocessing:
     - user_guide/preprocessing/CopyTransformer.md
@@ -127,6 +143,7 @@ pages:
   - api_subpackages/mlxtend.feature_selection.md
   - api_subpackages/mlxtend.file_io.md
   - api_subpackages/mlxtend.frequent_patterns.md
+  - api_subpackages/mlxtend.image.md
   - api_subpackages/mlxtend.plotting.md
   - api_subpackages/mlxtend.preprocessing.md
   - api_subpackages/mlxtend.regressor.md
@@ -134,8 +151,8 @@ pages:
   - api_subpackages/mlxtend.utils.md
 - Installation: installation.md
 - About:
-  - Release Notes: changelog.md
-  - How To Contribute: contributing.md
+  - Release Notes: CHANGELOG.md
+  - How To Contribute: CONTRIBUTING.md
   - Contributors: contributors.md
   - License: license.md
   - Citing Mlxtend: cite.md

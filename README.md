@@ -1,14 +1,12 @@
 
-
+[![DOI](http://joss.theoj.org/papers/10.21105/joss.00638/status.svg)](https://doi.org/10.21105/joss.00638)
 [![Build Status](https://travis-ci.org/rasbt/mlxtend.svg?branch=master)](https://travis-ci.org/rasbt/mlxtend)
 [![Build status](https://ci.appveyor.com/api/projects/status/7vx20e0h5dxcyla2/branch/master?svg=true)](https://ci.appveyor.com/project/rasbt/mlxtend/branch/master)
 [![Code Health](https://landscape.io/github/rasbt/mlxtend/master/landscape.svg?style=flat)](https://landscape.io/github/rasbt/mlxtend/master)
-[![PyPI version](https://badge.fury.io/py/mlxtend.svg)](http://badge.fury.io/py/mlxtend)
 [![Coverage Status](https://coveralls.io/repos/rasbt/mlxtend/badge.svg?branch=master&service=github)](https://coveralls.io/github/rasbt/mlxtend?branch=master)
-![Python 2.7](https://img.shields.io/badge/python-2.7-blue.svg)
 ![Python 3.6](https://img.shields.io/badge/python-3.6-blue.svg)
+![Python 3.7](https://img.shields.io/badge/python-3.7-blue.svg)
 ![License](https://img.shields.io/badge/license-BSD-blue.svg)
-[![](https://zenodo.org/badge/doi/10.5281/zenodo.594432.svg)](https://zenodo.org/record/594432#.VwWISmNh23c)
 [![Discuss](https://img.shields.io/badge/discuss-google_group-blue.svg)](https://groups.google.com/forum/#!forum/mlxtend)
 
 ![](./docs/sources/img/logo.png)
@@ -122,18 +120,26 @@ plt.show()
 
 If you use mlxtend as part of your workflow in a scientific publication, please consider citing the mlxtend repository with the following DOI:
 
-[![](https://zenodo.org/badge/doi/10.5281/zenodo.49235.svg)](https://zenodo.org/record/49235#.VwWISmNh23c)
 
 ```
-@misc{raschkas_2016_49235,
-  author       = {Raschka, Sebastian},
-  title        = {Mlxtend},
+@article{raschkas_2018_mlxtend,
+  author       = {Sebastian Raschka},
+  title        = {MLxtend: Providing machine learning and data science 
+                  utilities and extensions to Python’s  
+                  scientific computing stack},
+  journal      = {The Journal of Open Source Software},
+  volume       = {3},
+  number       = {24},
   month        = apr,
-  year         = 2016,
-  doi          = {10.5281/zenodo.49235},
-  url          = {http://dx.doi.org/10.5281/zenodo.49235}
+  year         = 2018,
+  publisher    = {The Open Journal},
+  doi          = {10.21105/joss.00638},
+  url          = {http://joss.theoj.org/papers/10.21105/joss.00638}
 }
 ```
+
+- Raschka, Sebastian (2018) MLxtend: Providing machine learning and data science utilities and extensions to Python's scientific computing stack.
+J Open Source Softw 3(24).
 
 ---
 

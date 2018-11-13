@@ -11,6 +11,7 @@
 from ..externals.estimator_checks import check_is_fitted
 from ..externals.name_estimators import _name_estimators
 from ..externals import six
+from scipy import sparse
 from sklearn.base import BaseEstimator
 from sklearn.base import ClassifierMixin
 from sklearn.base import TransformerMixin
@@ -56,10 +57,13 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         for fitting the meta-classifier stored in the
         `self.train_meta_features_` array, which can be
         accessed after calling `fit`.
-    refit : bool (default: True)
+    use_clones : bool (default: True)
         Clones the classifiers for stacking classification if True (default)
         or else uses the original ones, which will be refitted on the dataset
-        upon calling the `fit` method. Setting refit=False is
+        upon calling the `fit` method. Hence, if use_clones=True, the original
+        input classifiers will remain unmodified upon using the
+        StackingClassifier's `fit` method.
+        Setting `use_clones=False` is
         recommended if you are working with estimators that are supporting
         the scikit-learn fit/predict API interface but are not compatible
         to scikit-learn's `clone` function.
@@ -75,12 +79,17 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         number of samples
         in training data and n_classifiers is the number of classfiers.
 
+    Examples
+    -----------
+    For usage examples, please see
+    http://rasbt.github.io/mlxtend/user_guide/classifier/StackingClassifier/
+
     """
     def __init__(self, classifiers, meta_classifier,
                  use_probas=False, average_probas=False, verbose=0,
                  use_features_in_secondary=False,
                  store_train_meta_features=False,
-                 refit=True):
+                 use_clones=True):
 
         self.classifiers = classifiers
         self.meta_classifier = meta_classifier
@@ -95,9 +104,9 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
         self.verbose = verbose
         self.use_features_in_secondary = use_features_in_secondary
         self.store_train_meta_features = store_train_meta_features
-        self.refit = refit
+        self.use_clones = use_clones
 
-    def fit(self, X, y):
+    def fit(self, X, y, sample_weight=None):
         """ Fit ensemble classifers and the meta-classifier.
 
         Parameters
@@ -107,13 +116,18 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
             n_features is the number of features.
         y : array-like, shape = [n_samples] or [n_samples, n_outputs]
             Target values.
+        sample_weight : array-like, shape = [n_samples], optional
+            Sample weights passed as sample_weights to each regressor
+            in the regressors list as well as the meta_regressor.
+            Raises error if some regressor does not support
+            sample_weight in the fit() method.
 
         Returns
         -------
         self : object
 
         """
-        if self.refit:
+        if self.use_clones:
             self.clfs_ = [clone(clf) for clf in self.classifiers]
             self.meta_clf_ = clone(self.meta_classifier)
         else:
@@ -136,8 +150,10 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
 
             if self.verbose > 1:
                 print(_name_estimators((clf,))[0][1])
-
-            clf.fit(X, y)
+            if sample_weight is None:
+                clf.fit(X, y)
+            else:
+                clf.fit(X, y, sample_weight=sample_weight)
 
         meta_features = self.predict_meta_features(X)
 
@@ -145,9 +161,16 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
             self.train_meta_features_ = meta_features
 
         if not self.use_features_in_secondary:
+            pass
+        elif sparse.issparse(X):
+            meta_features = sparse.hstack((X, meta_features))
+        else:
+            meta_features = np.hstack((X, meta_features))
+
+        if sample_weight is None:
             self.meta_clf_.fit(meta_features, y)
         else:
-            self.meta_clf_.fit(np.hstack((X, meta_features)), y)
+            self.meta_clf_.fit(meta_features, y, sample_weight=sample_weight)
 
         return self
 
@@ -220,6 +243,8 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         if not self.use_features_in_secondary:
             return self.meta_clf_.predict(meta_features)
+        elif sparse.issparse(X):
+            return self.meta_clf_.predict(sparse.hstack((X, meta_features)))
         else:
             return self.meta_clf_.predict(np.hstack((X, meta_features)))
 
@@ -244,5 +269,9 @@ class StackingClassifier(BaseEstimator, ClassifierMixin, TransformerMixin):
 
         if not self.use_features_in_secondary:
             return self.meta_clf_.predict_proba(meta_features)
+        elif sparse.issparse(X):
+            return self.meta_clf_.predict_proba(
+                sparse.hstack((X, meta_features))
+            )
         else:
             return self.meta_clf_.predict_proba(np.hstack((X, meta_features)))

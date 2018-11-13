@@ -8,7 +8,6 @@
 # License: BSD 3 clause
 
 
-import string
 import inspect
 import os
 import sys
@@ -19,6 +18,21 @@ import shutil
 def _obj_name(obj):
     if hasattr(obj, '__name__'):
         return obj.__name__
+
+
+def make_markdown_url(line_string, s):
+    """
+    Turns an URL starting with s into
+    a markdown link
+    """
+    new_line = []
+    old_line = line_string.split(' ')
+    for token in old_line:
+        if not token.startswith(s):
+            new_line.append(token)
+        else:
+            new_line.append('[%s](%s)' % (token, token))
+    return ' '.join(new_line)
 
 
 def docstring_to_markdown(docstring):
@@ -41,8 +55,10 @@ def docstring_to_markdown(docstring):
         line = line.strip()
         if set(line) in ({'-'}, {'='}):
             new_docstring_lst[idx - 1] = '**%s**' % new_docstring_lst[idx - 1]
+
         elif line.startswith('>>>'):
             line = '    %s' % line
+
         new_docstring_lst.append(line)
 
     param_encountered = False
@@ -62,7 +78,25 @@ def docstring_to_markdown(docstring):
 
     clean_lst = []
     for line in new_docstring_lst:
-        if set(line.strip()) not in ({'-'}, {'='}):
+
+        if 'http://rasbt.github.io/' in line:
+            line = make_markdown_url(line_string=line,
+                                     s='http://rasbt.github.io/')
+
+            if len(clean_lst) > 0 and \
+                    clean_lst[-1].lstrip().startswith(
+                        'For more usage examples'):
+                clean_lst[-1] = clean_lst[-1].lstrip()
+                line = line.lstrip()
+
+        if line.startswith('\n>>>'):
+            clean_lst.append('\n')
+            clean_lst.append('    ' + line[1:])
+        elif line.startswith('        ```'):
+            clean_lst.append(line[8:])
+        elif line.startswith('    ```'):
+            clean_lst.append(line[4:])
+        elif set(line.strip()) not in ({'-'}, {'='}):
             clean_lst.append(line)
     return clean_lst
 
@@ -338,9 +372,11 @@ def summarize_methdods_and_functions(api_modules, out_dir,
         new_output = []
         if str_above_header:
             new_output.append(str_above_header)
-        for p in module_paths:
+        for p in sorted(module_paths):
             with open(p, 'r') as r:
+
                 new_output.extend(r.readlines())
+                new_output.extend(['\n', '\n', '\n'])
 
         msg = ''
         if not os.path.isfile(out_f):
@@ -406,4 +442,4 @@ if __name__ == "__main__":
                                      clean=args.clean,
                                      str_above_header=('mlxtend'
                                                        ' version: %s \n' % (
-                                                       package.__version__)))
+                                                        package.__version__)))
